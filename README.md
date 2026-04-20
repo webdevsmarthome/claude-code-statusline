@@ -74,3 +74,7 @@ rm ~/.claude/statusline-command.sh
 # statusLine-Eintrag aus settings.json entfernen
 jq 'del(.statusLine)' ~/.claude/settings.json > /tmp/s.json && mv /tmp/s.json ~/.claude/settings.json
 ```
+
+## Lizenz
+
+[MIT](LICENSE) - frei nutzbar, modifizierbar und weiterverteilbar.
