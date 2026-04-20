@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Claude Code Status Line
-# Zeigt: Modell | Effort | Verzeichnis | Git-Branch | Progress-Bar | Token | 5h | 7d | Kosten
+# Zeigt: Modell | Effort | Verzeichnis | Git-Branch | Context | Token | 5h | 7d | Kosten
 
 input=$(cat)
 esc=$'\e'
@@ -48,7 +48,7 @@ short_cwd="${cwd/#$home_dir/\~}"
 # --- Git-Branch ermitteln ---
 git_branch=""
 if git_out=$(git -C "$cwd" --no-optional-locks branch --show-current 2>/dev/null); then
-  [ -n "$git_out" ] && git_branch=" ${esc}[0;33m($git_out)${esc}[0m"
+  [ -n "$git_out" ] && git_branch=" ${esc}[2;33m($git_out)${esc}[0m"
 fi
 
 # --- Session-Kosten schaetzen (claude-sonnet/opus Preise, ca.-Werte) ---
@@ -74,31 +74,24 @@ else
   token_str=$(awk "BEGIN {printf \"%.2fM Tok\", $total_tokens / 1000000}")
 fi
 
-# --- Context-Progress-Bar ---
-bar=""
+# --- Context-Usage als Text (Ctx XX%) ---
+ctx_str=""
 if [ -n "$used_pct" ]; then
   used_int=$(printf "%.0f" "$used_pct")
-  bar_width=20
-  filled=$(( used_int * bar_width / 100 ))
-  empty=$(( bar_width - filled ))
-
   if [ "$used_int" -ge 80 ]; then
-    bar_color="${esc}[0;31m"   # Rot
+    ctx_color="${esc}[2;31m"   # dim Rot
   elif [ "$used_int" -ge 50 ]; then
-    bar_color="${esc}[0;33m"   # Gelb
+    ctx_color="${esc}[2;33m"   # dim Gelb
   else
-    bar_color="${esc}[0;32m"   # Gruen
+    ctx_color="${esc}[2;32m"   # dim Gruen
   fi
-
-  bar_filled=$(printf '%0.s█' $(seq 1 $filled) 2>/dev/null || printf '=%.0s' $(seq 1 $filled))
-  bar_empty=$(printf '%0.s░' $(seq 1 $empty) 2>/dev/null || printf '-%.0s' $(seq 1 $empty))
-  bar=" ${bar_color}[${bar_filled}${bar_empty}]${esc}[0m ${used_int}%"
+  ctx_str="  ${ctx_color}Ctx ${used_int}%${esc}[0m"
 fi
 
 # --- Effort-Anzeige aufbereiten (Magenta, dezent) ---
 effort_str=""
 if [ -n "$effort_label" ]; then
-  effort_str="  ${esc}[0;35m[${effort_label}]${esc}[0m"
+  effort_str="  ${esc}[2;35m[${effort_label}]${esc}[0m"
 fi
 
 # --- Rate-Limit (5h-Fenster, nur bei Pro/Max-Abos ab erster API-Antwort) ---
@@ -121,9 +114,9 @@ if [ -n "$rate_pct" ] && [ -n "$rate_reset" ]; then
 
   # Farbe je nach Auslastung: dim < 70% < gelb < 90% < rot
   if [ "$rate_pct_int" -ge 90 ]; then
-    rate_color="${esc}[0;31m"
+    rate_color="${esc}[2;31m"
   elif [ "$rate_pct_int" -ge 70 ]; then
-    rate_color="${esc}[0;33m"
+    rate_color="${esc}[2;33m"
   else
     rate_color="${esc}[2m"
   fi
@@ -152,9 +145,9 @@ if [ -n "$rate7_pct" ] && [ -n "$rate7_reset" ]; then
   reset7_str="${day_abbr} ${time_str}"
 
   if [ "$rate7_pct_int" -ge 90 ]; then
-    rate7_color="${esc}[0;31m"
+    rate7_color="${esc}[2;31m"
   elif [ "$rate7_pct_int" -ge 70 ]; then
-    rate7_color="${esc}[0;33m"
+    rate7_color="${esc}[2;33m"
   else
     rate7_color="${esc}[2m"
   fi
@@ -162,13 +155,13 @@ if [ -n "$rate7_pct" ] && [ -n "$rate7_reset" ]; then
 fi
 
 # --- Ausgabe zusammenbauen ---
-# Reihenfolge: Modell | Effort | Verzeichnis | Git-Branch | Progress-Bar | Token | 5h | 7d | Kosten
-printf "${esc}[0;36m%s${esc}[0m%s  ${esc}[0;34m%s${esc}[0m%s%s  ${esc}[2m%s${esc}[0m%s%s  ${esc}[2m\$%.4f${esc}[0m\n" \
+# Reihenfolge: Modell | Effort | Verzeichnis | Git-Branch | Context | Token | 5h | 7d | Kosten
+printf "${esc}[2;36m%s${esc}[0m%s  ${esc}[2;34m%s${esc}[0m%s%s  ${esc}[2m%s${esc}[0m%s%s  ${esc}[2m\$%.4f${esc}[0m\n" \
   "$model" \
   "$effort_str" \
   "$short_cwd" \
   "$git_branch" \
-  "$bar" \
+  "$ctx_str" \
   "$token_str" \
   "$rate_str" \
   "$rate7_str" \

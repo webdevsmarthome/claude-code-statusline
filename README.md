@@ -5,8 +5,10 @@ Eine kompakte, farbige Statusline fuer [Claude Code](https://claude.com/claude-c
 ## Anzeige
 
 ```
-Claude Opus 4  [max]  ~/projekte/repo (main)  [████░░░░░░░░░░░░░░░░] 20%  42.3k Tok  5h 18% (37m)  7d 15% (Do 20:59)  $0.1234
+Claude Opus 4  [max]  ~/projekte/repo (main)  Ctx 20%  42.3k Tok  5h 18% (37m)  7d 15% (Do 20:59)  $0.1234
 ```
+
+Alle Farben sind gedimmt (`\e[2;XXm`), damit die Statusline dezent in den Hintergrund tritt und den eigentlichen Prompt-Text nicht ueberstrahlt.
 
 Felder von links nach rechts:
 
@@ -16,7 +18,7 @@ Felder von links nach rechts:
 | **Effort** | Reasoning-Effort-Level (`low`/`medium`/`high`/`max`) |
 | **Verzeichnis** | Aktuelles Arbeitsverzeichnis, `~` fuer Home (blau) |
 | **Git-Branch** | In Klammern, nur wenn das Verzeichnis ein Git-Repo ist (gelb) |
-| **Context-Progress-Bar** | 20-Zeichen-Balken, gruen < 50% < gelb < 80% < rot |
+| **Context-Usage** | Context-Fenster-Auslastung als Text (`Ctx XX%`), gruen < 50% < gelb < 80% < rot |
 | **Token-Verbrauch** | Gesamte Session-Tokens (`k`/`M`-Suffix, gedimmt) |
 | **Rate-Limit (5h)** | Plan-Auslastung im 5-Stunden-Fenster, Reset relativ (`37m` / `2h 15m`). Farbe: dim < 70% < gelb < 90% < rot |
 | **Rate-Limit (7d)** | Plan-Auslastung im 7-Tage-Fenster, Reset als Wochentag+Uhrzeit (`Do 20:59`). Gleiche Farbschwellen |
