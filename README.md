@@ -38,6 +38,18 @@ Der Installer:
 
 Nach der Installation: **Claude Code neu starten.**
 
+## Konfiguration (Felder ein-/ausblenden)
+
+Einzelne Felder lassen sich ueber eine optionale Datei `~/.claude/statusline-config` steuern. Sie wird vom Installer **nie** ueberschrieben.
+
+```bash
+# ~/.claude/statusline-config
+SHOW_CWD=0    # Verzeichnis ausblenden (1 = anzeigen, Default)
+SHOW_GIT=0    # Git-Branch ausblenden (1 = anzeigen, Default)
+```
+
+Alles was nicht in der Datei steht, bleibt beim Default (`1` = sichtbar). Zum Wiedereinblenden einfach den Wert auf `1` setzen oder die Zeile loeschen.
+
 ## Voraussetzungen
 
 - `bash`

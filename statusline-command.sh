@@ -5,6 +5,15 @@
 input=$(cat)
 esc=$'\e'
 
+# === Konfiguration ===
+# Toggle einzelner Felder ueber die Datei ~/.claude/statusline-config.
+# Format: Shell-Variablen (z.B. SHOW_CWD=0). Jeder Wert != 1 blendet aus.
+# Die Datei wird hier gesource'd - wenn sie fehlt, greifen die Defaults.
+STATUSLINE_CONFIG="${HOME}/.claude/statusline-config"
+[ -f "$STATUSLINE_CONFIG" ] && source "$STATUSLINE_CONFIG"
+SHOW_CWD="${SHOW_CWD:-1}"   # Verzeichnis
+SHOW_GIT="${SHOW_GIT:-1}"   # Git-Branch
+
 # --- Daten aus JSON extrahieren ---
 model=$(echo "$input" | jq -r '.model.display_name // "?"')
 cwd=$(echo "$input" | jq -r '.workspace.current_dir // .cwd // "?"')
@@ -41,14 +50,20 @@ else
   fi
 fi
 
-# --- Verzeichnis kuerzen (Home ersetzen durch ~) ---
-home_dir="$HOME"
-short_cwd="${cwd/#$home_dir/\~}"
+# --- Verzeichnis (wenn SHOW_CWD=1) ---
+cwd_str=""
+if [ "$SHOW_CWD" = "1" ]; then
+  home_dir="$HOME"
+  short_cwd="${cwd/#$home_dir/\~}"
+  cwd_str="  ${esc}[2;34m${short_cwd}${esc}[0m"
+fi
 
-# --- Git-Branch ermitteln ---
+# --- Git-Branch (wenn SHOW_GIT=1) ---
 git_branch=""
-if git_out=$(git -C "$cwd" --no-optional-locks branch --show-current 2>/dev/null); then
-  [ -n "$git_out" ] && git_branch=" ${esc}[2;33m($git_out)${esc}[0m"
+if [ "$SHOW_GIT" = "1" ]; then
+  if git_out=$(git -C "$cwd" --no-optional-locks branch --show-current 2>/dev/null); then
+    [ -n "$git_out" ] && git_branch=" ${esc}[2;33m($git_out)${esc}[0m"
+  fi
 fi
 
 # --- Session-Kosten schaetzen (claude-sonnet/opus Preise, ca.-Werte) ---
@@ -156,10 +171,10 @@ fi
 
 # --- Ausgabe zusammenbauen ---
 # Reihenfolge: Modell | Effort | Verzeichnis | Git-Branch | Context | Token | 5h | 7d | Kosten
-printf "${esc}[2;36m%s${esc}[0m%s  ${esc}[2;34m%s${esc}[0m%s%s  ${esc}[2m%s${esc}[0m%s%s  ${esc}[2m\$%.4f${esc}[0m\n" \
+printf "${esc}[2;36m%s${esc}[0m%s%s%s%s  ${esc}[2m%s${esc}[0m%s%s  ${esc}[2m\$%.4f${esc}[0m\n" \
   "$model" \
   "$effort_str" \
-  "$short_cwd" \
+  "$cwd_str" \
   "$git_branch" \
   "$ctx_str" \
   "$token_str" \
