@@ -5,7 +5,7 @@ Eine kompakte, farbige Statusline fuer [Claude Code](https://claude.com/claude-c
 ## Anzeige
 
 ```
-Claude Opus 4  [max]  ~/projekte/repo (main)  [████░░░░░░░░░░░░░░░░] 20%  42.3k Tok  5h 18% (37m)  $0.1234
+Claude Opus 4  [max]  ~/projekte/repo (main)  [████░░░░░░░░░░░░░░░░] 20%  42.3k Tok  5h 18% (37m)  7d 15% (Do 20:59)  $0.1234
 ```
 
 Felder von links nach rechts:
@@ -18,7 +18,8 @@ Felder von links nach rechts:
 | **Git-Branch** | In Klammern, nur wenn das Verzeichnis ein Git-Repo ist (gelb) |
 | **Context-Progress-Bar** | 20-Zeichen-Balken, gruen < 50% < gelb < 80% < rot |
 | **Token-Verbrauch** | Gesamte Session-Tokens (`k`/`M`-Suffix, gedimmt) |
-| **Rate-Limit (5h)** | Plan-Auslastung im 5-Stunden-Fenster mit Reset-Zeit (dim < 70% < gelb < 90% < rot) |
+| **Rate-Limit (5h)** | Plan-Auslastung im 5-Stunden-Fenster, Reset relativ (`37m` / `2h 15m`). Farbe: dim < 70% < gelb < 90% < rot |
+| **Rate-Limit (7d)** | Plan-Auslastung im 7-Tage-Fenster, Reset als Wochentag+Uhrzeit (`Do 20:59`). Gleiche Farbschwellen |
 | **Session-Kosten** | API-Preis-Schaetzung in USD, gedimmt |
 
 ## Installation
@@ -48,7 +49,7 @@ Einfach erneut den Installer laufen lassen - er ueberschreibt das Skript und pat
 ## Hinweise
 
 - **Kosten sind geschaetzt** basierend auf den Anthropic-API-Preisen (Sonnet: $3/$15 pro MTok, Opus: $15/$75 pro MTok). Bei Claude Pro/Max zahlst du eine feste Pauschale - die Zahl hier ist ein reiner Orientierungswert.
-- **Rate-Limit erscheint erst nach der ersten API-Antwort** einer Session und ist nur bei Pro/Max-Abos im stdin-JSON enthalten.
+- **Rate-Limits erscheinen erst nach der ersten API-Antwort** einer Session und sind nur bei Pro/Max-Abos im stdin-JSON enthalten. Fehlen die Felder, werden die entsprechenden Blocke einfach weggelassen.
 
 ## Deinstallation
 

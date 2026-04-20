@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Claude Code Status Line
-# Zeigt: Modell | Effort | Verzeichnis | Git-Branch | Progress-Bar | Token | Rate-Limit | Kosten
+# Zeigt: Modell | Effort | Verzeichnis | Git-Branch | Progress-Bar | Token | 5h | 7d | Kosten
 
 input=$(cat)
 esc=$'\e'
@@ -130,9 +130,40 @@ if [ -n "$rate_pct" ] && [ -n "$rate_reset" ]; then
   rate_str="  ${rate_color}5h ${rate_pct_int}% (${reset_str})${esc}[0m"
 fi
 
+# --- Rate-Limit (7-Tage-Fenster, nur bei Pro/Max-Abos ab erster API-Antwort) ---
+rate7_str=""
+rate7_pct=$(echo "$input" | jq -r '.rate_limits.seven_day.used_percentage // empty')
+rate7_reset=$(echo "$input" | jq -r '.rate_limits.seven_day.resets_at // empty')
+if [ -n "$rate7_pct" ] && [ -n "$rate7_reset" ]; then
+  rate7_pct_int=$(printf "%.0f" "$rate7_pct")
+  # Wochentag (deutsch) + Uhrzeit, z.B. "Do 20:59"
+  day_num=$(date -d "@$rate7_reset" +%u 2>/dev/null || echo "")
+  case "$day_num" in
+    1) day_abbr="Mo" ;;
+    2) day_abbr="Di" ;;
+    3) day_abbr="Mi" ;;
+    4) day_abbr="Do" ;;
+    5) day_abbr="Fr" ;;
+    6) day_abbr="Sa" ;;
+    7) day_abbr="So" ;;
+    *) day_abbr="?" ;;
+  esac
+  time_str=$(date -d "@$rate7_reset" +%H:%M 2>/dev/null || echo "?")
+  reset7_str="${day_abbr} ${time_str}"
+
+  if [ "$rate7_pct_int" -ge 90 ]; then
+    rate7_color="${esc}[0;31m"
+  elif [ "$rate7_pct_int" -ge 70 ]; then
+    rate7_color="${esc}[0;33m"
+  else
+    rate7_color="${esc}[2m"
+  fi
+  rate7_str="  ${rate7_color}7d ${rate7_pct_int}% (${reset7_str})${esc}[0m"
+fi
+
 # --- Ausgabe zusammenbauen ---
-# Reihenfolge: Modell | Effort | Verzeichnis | Git-Branch | Progress-Bar | Token | Rate-Limit | Kosten
-printf "${esc}[0;36m%s${esc}[0m%s  ${esc}[0;34m%s${esc}[0m%s%s  ${esc}[2m%s${esc}[0m%s  ${esc}[2m\$%.4f${esc}[0m\n" \
+# Reihenfolge: Modell | Effort | Verzeichnis | Git-Branch | Progress-Bar | Token | 5h | 7d | Kosten
+printf "${esc}[0;36m%s${esc}[0m%s  ${esc}[0;34m%s${esc}[0m%s%s  ${esc}[2m%s${esc}[0m%s%s  ${esc}[2m\$%.4f${esc}[0m\n" \
   "$model" \
   "$effort_str" \
   "$short_cwd" \
@@ -140,4 +171,5 @@ printf "${esc}[0;36m%s${esc}[0m%s  ${esc}[0;34m%s${esc}[0m%s%s  ${esc}[2m%s${esc
   "$bar" \
   "$token_str" \
   "$rate_str" \
+  "$rate7_str" \
   "$total_cost"
