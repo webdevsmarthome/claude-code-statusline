@@ -5,6 +5,10 @@
 input=$(cat)
 esc=$'\e'
 
+# Punkt als Dezimaltrenner erzwingen (awk/printf ignorieren sonst $LC_NUMERIC
+# und bauen "200,0k Tok" / "$2,0000" statt "200.0k Tok" / "$2.0000").
+export LC_NUMERIC=C
+
 # === Konfiguration ===
 # Toggle einzelner Felder ueber die Datei ~/.claude/statusline-config.
 # Format: Shell-Variablen (z.B. SHOW_CWD=0). Jeder Wert != 1 blendet aus.
@@ -24,19 +28,19 @@ total_out=$(echo "$input" | jq -r '.context_window.total_output_tokens // 0')
 # --- Effort-Level ermitteln ---
 # Primaer: output_style.name aus dem stdin-JSON
 # Fallback 1: Env-Variable CLAUDE_REASONING_EFFORT
-# Fallback 2: reasoning_effort aus settings.json (numerisch -> Label mappen)
+# Fallback 2: effortLevel (string) aus settings.json -> direkt als Label
+# Fallback 3: reasoning_effort aus settings.json (numerisch -> Label mappen)
 effort_label=""
 output_style=$(echo "$input" | jq -r '.output_style.name // empty')
+settings_file="$HOME/.claude/settings.json"
 if [ -n "$output_style" ] && [ "$output_style" != "default" ]; then
   effort_label="$output_style"
-else
-  settings_effort="${CLAUDE_REASONING_EFFORT:-}"
-  if [ -z "$settings_effort" ]; then
-    settings_file="$HOME/.claude/settings.json"
-    if [ -f "$settings_file" ]; then
-      settings_effort=$(jq -r '.reasoning_effort // empty' "$settings_file" 2>/dev/null)
-    fi
-  fi
+elif [ -n "${CLAUDE_REASONING_EFFORT:-}" ]; then
+  effort_label="$CLAUDE_REASONING_EFFORT"
+elif [ -f "$settings_file" ] && effort_str_cfg=$(jq -r '.effortLevel // empty' "$settings_file" 2>/dev/null) && [ -n "$effort_str_cfg" ]; then
+  effort_label="$effort_str_cfg"
+elif [ -f "$settings_file" ]; then
+  settings_effort=$(jq -r '.reasoning_effort // empty' "$settings_file" 2>/dev/null)
   if [ -n "$settings_effort" ]; then
     if [ "$settings_effort" -ge 220 ] 2>/dev/null; then
       effort_label="max"
@@ -145,7 +149,8 @@ rate7_reset=$(echo "$input" | jq -r '.rate_limits.seven_day.resets_at // empty')
 if [ -n "$rate7_pct" ] && [ -n "$rate7_reset" ]; then
   rate7_pct_int=$(printf "%.0f" "$rate7_pct")
   # Wochentag (deutsch) + Uhrzeit, z.B. "Do 20:59"
-  day_num=$(date -d "@$rate7_reset" +%u 2>/dev/null || echo "")
+  # macOS (BSD date): -r <ts>; Linux (GNU date): -d "@<ts>". Beide Varianten probieren.
+  day_num=$(date -r "$rate7_reset" +%u 2>/dev/null || date -d "@$rate7_reset" +%u 2>/dev/null || echo "")
   case "$day_num" in
     1) day_abbr="Mo" ;;
     2) day_abbr="Di" ;;
@@ -156,7 +161,7 @@ if [ -n "$rate7_pct" ] && [ -n "$rate7_reset" ]; then
     7) day_abbr="So" ;;
     *) day_abbr="?" ;;
   esac
-  time_str=$(date -d "@$rate7_reset" +%H:%M 2>/dev/null || echo "?")
+  time_str=$(date -r "$rate7_reset" +%H:%M 2>/dev/null || date -d "@$rate7_reset" +%H:%M 2>/dev/null || echo "?")
   reset7_str="${day_abbr} ${time_str}"
 
   if [ "$rate7_pct_int" -ge 90 ]; then
