@@ -5,8 +5,10 @@
 input=$(cat)
 esc=$'\e'
 
-# Punkt als Dezimaltrenner erzwingen (awk/printf ignorieren sonst $LC_NUMERIC
-# und bauen "200,0k Tok" / "$2,0000" statt "200.0k Tok" / "$2.0000").
+# Punkt als Dezimaltrenner erzwingen. LC_ALL hat hoehere Prioritaet als
+# LC_NUMERIC und wird vom System (de_DE.UTF-8) gesetzt – deshalb muss hier
+# LC_ALL=C gesetzt werden, sonst bauen awk/printf "200,0k Tok" / "$2,0000".
+export LC_ALL=C
 export LC_NUMERIC=C
 
 # === Konfiguration ===
@@ -26,14 +28,18 @@ total_in=$(echo "$input" | jq -r '.context_window.total_input_tokens // 0')
 total_out=$(echo "$input" | jq -r '.context_window.total_output_tokens // 0')
 
 # --- Effort-Level ermitteln ---
-# Primaer: output_style.name aus dem stdin-JSON
-# Fallback 1: Env-Variable CLAUDE_REASONING_EFFORT
-# Fallback 2: effortLevel (string) aus settings.json -> direkt als Label
-# Fallback 3: reasoning_effort aus settings.json (numerisch -> Label mappen)
+# Primaer: effort.level aus dem stdin-JSON (Session-Wert, wird per /effort gesetzt)
+# Fallback 1: output_style.name aus dem stdin-JSON (nur wenn nicht "default")
+# Fallback 2: Env-Variable CLAUDE_REASONING_EFFORT
+# Fallback 3: effortLevel (string) aus settings.json -> direkt als Label
+# Fallback 4: reasoning_effort aus settings.json (numerisch -> Label mappen)
 effort_label=""
+effort_level_json=$(echo "$input" | jq -r '.effort.level // empty')
 output_style=$(echo "$input" | jq -r '.output_style.name // empty')
 settings_file="$HOME/.claude/settings.json"
-if [ -n "$output_style" ] && [ "$output_style" != "default" ]; then
+if [ -n "$effort_level_json" ]; then
+  effort_label="$effort_level_json"
+elif [ -n "$output_style" ] && [ "$output_style" != "default" ]; then
   effort_label="$output_style"
 elif [ -n "${CLAUDE_REASONING_EFFORT:-}" ]; then
   effort_label="$CLAUDE_REASONING_EFFORT"
@@ -54,13 +60,12 @@ elif [ -f "$settings_file" ]; then
   fi
 fi
 
-# --- Verzeichnis (wenn SHOW_CWD=1) ---
+# --- Verzeichnis (immer berechnen, fuer user@host:Pfad und Git) ---
+home_dir="$HOME"
+short_cwd="${cwd/#$home_dir/\~}"
+# cwd_str nur als separates Element wenn SHOW_CWD=1 und es wuerde ohnehin
+# nicht mehr allein ausgegeben – der Pfad steckt jetzt in userhost_str.
 cwd_str=""
-if [ "$SHOW_CWD" = "1" ]; then
-  home_dir="$HOME"
-  short_cwd="${cwd/#$home_dir/\~}"
-  cwd_str="  ${esc}[2;34m${short_cwd}${esc}[0m"
-fi
 
 # --- Git-Branch (wenn SHOW_GIT=1) ---
 git_branch=""
@@ -70,14 +75,21 @@ if [ "$SHOW_GIT" = "1" ]; then
   fi
 fi
 
-# --- Session-Kosten schaetzen (claude-sonnet/opus Preise, ca.-Werte) ---
-# Sonnet: $3/MTok input, $15/MTok output
-# Opus:   $15/MTok input, $75/MTok output
+# --- Session-Kosten schaetzen (Preise Stand 2026, ca.-Werte pro 1M Tokens) ---
+# Opus 4.x:   $15 input / $75 output
+# Sonnet 4.x: $3 input  / $15 output
+# Haiku 4.x:  $1 input  / $5 output
+# Hinweis: Cache-Write/Read-Kosten werden nicht berechnet (nur in current_usage,
+# nicht als kumulative Felder im stdin-JSON verfuegbar). Werte sind Naeherungen.
 model_id=$(echo "$input" | jq -r '.model.id // ""')
 if echo "$model_id" | grep -qi "opus"; then
   cost_in=$(awk "BEGIN {printf \"%.4f\", $total_in / 1000000 * 15}")
   cost_out=$(awk "BEGIN {printf \"%.4f\", $total_out / 1000000 * 75}")
+elif echo "$model_id" | grep -qi "haiku"; then
+  cost_in=$(awk "BEGIN {printf \"%.4f\", $total_in / 1000000 * 1}")
+  cost_out=$(awk "BEGIN {printf \"%.4f\", $total_out / 1000000 * 5}")
 else
+  # Sonnet (Default): $3/$15
   cost_in=$(awk "BEGIN {printf \"%.4f\", $total_in / 1000000 * 3}")
   cost_out=$(awk "BEGIN {printf \"%.4f\", $total_out / 1000000 * 15}")
 fi
@@ -107,10 +119,15 @@ if [ -n "$used_pct" ]; then
   ctx_str="  ${ctx_color}Ctx ${used_int}%${esc}[0m"
 fi
 
-# --- Effort-Anzeige aufbereiten (Magenta, dezent) ---
+# --- Effort-Anzeige aufbereiten (Magenta, dezent; max/xhigh hell+bold) ---
 effort_str=""
 if [ -n "$effort_label" ]; then
-  effort_str="  ${esc}[2;35m[${effort_label}]${esc}[0m"
+  case "$effort_label" in
+    max|xhigh)
+      effort_str="  ${esc}[1;35m[${effort_label}]${esc}[0m" ;;  # Bold Magenta fuer hoechste Stufen
+    *)
+      effort_str="  ${esc}[2;35m[${effort_label}]${esc}[0m" ;;  # Dim Magenta fuer low/medium/high
+  esac
 fi
 
 # --- Rate-Limit (5h-Fenster, nur bei Pro/Max-Abos ab erster API-Antwort) ---
@@ -174,15 +191,24 @@ if [ -n "$rate7_pct" ] && [ -n "$rate7_reset" ]; then
   rate7_str="  ${rate7_color}7d ${rate7_pct_int}% (${reset7_str})${esc}[0m"
 fi
 
+# --- user@host:Verzeichnis (PS1-Stil, an Position 3 der Status Line) ---
+# Format: user@host:~/project  (user@host dim-weiss, Doppelpunkt dim, Pfad dim-blau)
+if [ "$SHOW_CWD" = "1" ]; then
+  userhost_str="${esc}[2;37m$(whoami)@$(hostname -s)${esc}[0m${esc}[2m:${esc}[0m${esc}[2;34m${short_cwd}${esc}[0m"
+else
+  userhost_str="${esc}[2;37m$(whoami)@$(hostname -s)${esc}[0m"
+fi
+
 # --- Ausgabe zusammenbauen ---
-# Reihenfolge: Modell | Effort | Verzeichnis | Git-Branch | Context | Token | 5h | 7d | Kosten
-printf "${esc}[2;36m%s${esc}[0m%s%s%s%s  ${esc}[2m%s${esc}[0m%s%s  ${esc}[2m\$%.4f${esc}[0m\n" \
+# Reihenfolge: Modell | Effort | user@host:Verzeichnis | Git-Branch | Context | Token | Kosten | 5h | 7d
+printf "${esc}[2;36m%s${esc}[0m%s  %s%s%s%s  ${esc}[2m%s${esc}[0m  ${esc}[2m\$%.4f${esc}[0m%s%s\n" \
   "$model" \
   "$effort_str" \
+  "$userhost_str" \
   "$cwd_str" \
   "$git_branch" \
   "$ctx_str" \
   "$token_str" \
+  "$total_cost" \
   "$rate_str" \
-  "$rate7_str" \
-  "$total_cost"
+  "$rate7_str"
