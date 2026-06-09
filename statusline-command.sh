@@ -75,16 +75,20 @@ if [ "$SHOW_GIT" = "1" ]; then
   fi
 fi
 
-# --- Session-Kosten schaetzen (Preise Stand 2026, ca.-Werte pro 1M Tokens) ---
-# Opus 4.x:   $15 input / $75 output
+# --- Session-Kosten schaetzen (Preise Stand 2026-06, ca.-Werte pro 1M Tokens) ---
+# Fable 5:    $10 input / $50 output
+# Opus 4.x:   $5 input  / $25 output   (4.6/4.7/4.8; 1M-Kontext ohne Aufpreis)
 # Sonnet 4.x: $3 input  / $15 output
 # Haiku 4.x:  $1 input  / $5 output
 # Hinweis: Cache-Write/Read-Kosten werden nicht berechnet (nur in current_usage,
 # nicht als kumulative Felder im stdin-JSON verfuegbar). Werte sind Naeherungen.
 model_id=$(echo "$input" | jq -r '.model.id // ""')
-if echo "$model_id" | grep -qi "opus"; then
-  cost_in=$(awk "BEGIN {printf \"%.4f\", $total_in / 1000000 * 15}")
-  cost_out=$(awk "BEGIN {printf \"%.4f\", $total_out / 1000000 * 75}")
+if echo "$model_id" | grep -qi "fable"; then
+  cost_in=$(awk "BEGIN {printf \"%.4f\", $total_in / 1000000 * 10}")
+  cost_out=$(awk "BEGIN {printf \"%.4f\", $total_out / 1000000 * 50}")
+elif echo "$model_id" | grep -qi "opus"; then
+  cost_in=$(awk "BEGIN {printf \"%.4f\", $total_in / 1000000 * 5}")
+  cost_out=$(awk "BEGIN {printf \"%.4f\", $total_out / 1000000 * 25}")
 elif echo "$model_id" | grep -qi "haiku"; then
   cost_in=$(awk "BEGIN {printf \"%.4f\", $total_in / 1000000 * 1}")
   cost_out=$(awk "BEGIN {printf \"%.4f\", $total_out / 1000000 * 5}")
@@ -148,15 +152,17 @@ if [ -n "$rate_pct" ] && [ -n "$rate_reset" ]; then
     reset_str="${hours}h ${mins}m"
   fi
 
-  # Farbe je nach Auslastung: dim < 70% < gelb < 90% < rot
+  # Ab 90% deutliche Warnung (Bold-Rot + Symbol), ab 70% dezent gelb, sonst dim.
+  rate_warn=""
   if [ "$rate_pct_int" -ge 90 ]; then
-    rate_color="${esc}[2;31m"
+    rate_color="${esc}[1;31m"   # Bold Rot = Warnung
+    rate_warn="⚠ "
   elif [ "$rate_pct_int" -ge 70 ]; then
-    rate_color="${esc}[2;33m"
+    rate_color="${esc}[2;33m"   # dim Gelb = Frühwarnung
   else
     rate_color="${esc}[2m"
   fi
-  rate_str="  ${rate_color}5h ${rate_pct_int}% (${reset_str})${esc}[0m"
+  rate_str="  ${rate_color}${rate_warn}5h ${rate_pct_int}% (${reset_str})${esc}[0m"
 fi
 
 # --- Rate-Limit (7-Tage-Fenster, nur bei Pro/Max-Abos ab erster API-Antwort) ---
@@ -181,14 +187,17 @@ if [ -n "$rate7_pct" ] && [ -n "$rate7_reset" ]; then
   time_str=$(date -r "$rate7_reset" +%H:%M 2>/dev/null || date -d "@$rate7_reset" +%H:%M 2>/dev/null || echo "?")
   reset7_str="${day_abbr} ${time_str}"
 
+  # Ab 90% deutliche Warnung (Bold-Rot + Symbol), ab 70% dezent gelb, sonst dim.
+  rate7_warn=""
   if [ "$rate7_pct_int" -ge 90 ]; then
-    rate7_color="${esc}[2;31m"
+    rate7_color="${esc}[1;31m"   # Bold Rot = Warnung
+    rate7_warn="⚠ "
   elif [ "$rate7_pct_int" -ge 70 ]; then
-    rate7_color="${esc}[2;33m"
+    rate7_color="${esc}[2;33m"   # dim Gelb = Frühwarnung
   else
     rate7_color="${esc}[2m"
   fi
-  rate7_str="  ${rate7_color}7d ${rate7_pct_int}% (${reset7_str})${esc}[0m"
+  rate7_str="  ${rate7_color}${rate7_warn}7d ${rate7_pct_int}% (${reset7_str})${esc}[0m"
 fi
 
 # --- user@host:Verzeichnis (PS1-Stil, an Position 3 der Status Line) ---

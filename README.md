@@ -21,8 +21,8 @@ Felder von links nach rechts:
 | **Context-Usage** | Context-Fenster-Auslastung als Text (`Ctx XX%`), gruen < 50% < gelb < 80% < rot |
 | **Token-Verbrauch** | Gesamte Session-Tokens (`k`/`M`-Suffix, gedimmt) |
 | **Session-Kosten** | API-Preis-Schaetzung in USD, gedimmt |
-| **Rate-Limit (5h)** | Plan-Auslastung im 5-Stunden-Fenster, Reset relativ (`37m` / `2h 15m`). Farbe: dim < 70% < gelb < 90% < rot |
-| **Rate-Limit (7d)** | Plan-Auslastung im 7-Tage-Fenster, Reset als Wochentag+Uhrzeit (`Do 20:59`). Gleiche Farbschwellen |
+| **Rate-Limit (5h)** | Plan-Auslastung im 5-Stunden-Fenster, Reset relativ (`37m` / `2h 15m`). Farbe: dim < 70% < gelb < 90%; ab 90% Bold-Rot mit ⚠-Warnung |
+| **Rate-Limit (7d)** | Plan-Auslastung im 7-Tage-Fenster, Reset als Wochentag+Uhrzeit (`Do 20:59`). Gleiche Farbschwellen inkl. ⚠-Warnung ab 90% |
 
 ## Installation
 
@@ -62,8 +62,9 @@ Einfach erneut den Installer laufen lassen - er ueberschreibt das Skript und pat
 
 ## Hinweise
 
-- **Kosten sind geschaetzt** basierend auf den Anthropic-API-Preisen pro 1M Tokens (Stand 2026):
-  - Opus 4.x: $15 input / $75 output
+- **Kosten sind geschaetzt** basierend auf den Anthropic-API-Preisen pro 1M Tokens (Stand 2026-06):
+  - Fable 5: $10 input / $50 output
+  - Opus 4.x: $5 input / $25 output (4.6/4.7/4.8; 1M-Kontext ohne Aufpreis)
   - Sonnet 4.x: $3 input / $15 output
   - Haiku 4.x: $1 input / $5 output
 
