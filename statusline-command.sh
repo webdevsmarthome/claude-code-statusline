@@ -123,12 +123,16 @@ if [ -n "$used_pct" ]; then
   ctx_str="  ${ctx_color}Ctx ${used_int}%${esc}[0m"
 fi
 
-# --- Effort-Anzeige aufbereiten (Magenta, dezent; max/xhigh hell+bold) ---
+# --- Effort-Anzeige aufbereiten (Magenta, dezent; max/xhigh hell+bold; ultracode am staerksten) ---
+# Match case-/locale-unabhaengig (lowercase-Kopie), Anzeige bleibt im Original-Label.
 effort_str=""
 if [ -n "$effort_label" ]; then
-  case "$effort_label" in
+  effort_lc=$(echo "$effort_label" | tr '[:upper:]' '[:lower:]')
+  case "$effort_lc" in
+    ultracode)
+      effort_str="  ${esc}[1;95m[⚡ ${effort_label}]${esc}[0m" ;;  # Bold Hell-Magenta + Symbol: Ultracode (Multi-Agent-Orchestrierung)
     max|xhigh)
-      effort_str="  ${esc}[1;35m[${effort_label}]${esc}[0m" ;;  # Bold Magenta fuer hoechste Stufen
+      effort_str="  ${esc}[1;35m[${effort_label}]${esc}[0m" ;;  # Bold Magenta fuer hoechste Reasoning-Stufen
     *)
       effort_str="  ${esc}[2;35m[${effort_label}]${esc}[0m" ;;  # Dim Magenta fuer low/medium/high
   esac
