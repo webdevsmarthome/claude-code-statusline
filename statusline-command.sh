@@ -19,6 +19,7 @@ STATUSLINE_CONFIG="${HOME}/.claude/statusline-config"
 [ -f "$STATUSLINE_CONFIG" ] && source "$STATUSLINE_CONFIG"
 SHOW_CWD="${SHOW_CWD:-1}"   # Verzeichnis
 SHOW_GIT="${SHOW_GIT:-1}"   # Git-Branch
+CWD_STYLE="${CWD_STYLE:-basename}"   # basename = nur letzter Pfad-Teil, full = kompletter Pfad
 
 # --- Daten aus JSON extrahieren ---
 model=$(echo "$input" | jq -r '.model.display_name // "?"')
@@ -61,8 +62,23 @@ elif [ -f "$settings_file" ]; then
 fi
 
 # --- Verzeichnis (immer berechnen, fuer user@host:Pfad und Git) ---
+# CWD_STYLE=basename (Default): nur der letzte Pfad-Teil, z.B. "claude-code-statusline".
+#   Haelt den Block kurz, damit die Felder rechts (Ctx/Token/Limits) sichtbar bleiben.
+# CWD_STYLE=full: kompletter Pfad, Home als "~", z.B. "~/projekte/claude-code-statusline".
+# Home selbst wird in beiden Modi als "~" angezeigt, Root als "/".
+# Hinweis: bewusst kein ${cwd/#$HOME/\~} - bash 3.2 (macOS) gibt dabei ein literales "\~" aus.
 home_dir="$HOME"
-short_cwd="${cwd/#$home_dir/\~}"
+if [ "$cwd" = "$home_dir" ]; then
+  short_cwd="~"
+elif [ "$CWD_STYLE" = "full" ]; then
+  case "$cwd" in
+    "$home_dir"/*) short_cwd="~${cwd#"$home_dir"}" ;;
+    *)             short_cwd="$cwd" ;;
+  esac
+else
+  short_cwd="${cwd##*/}"
+  [ -z "$short_cwd" ] && short_cwd="$cwd"   # z.B. "/" -> "/"
+fi
 # cwd_str nur als separates Element wenn SHOW_CWD=1 und es wuerde ohnehin
 # nicht mehr allein ausgegeben – der Pfad steckt jetzt in userhost_str.
 cwd_str=""

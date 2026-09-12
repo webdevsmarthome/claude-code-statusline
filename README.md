@@ -5,7 +5,7 @@ Eine kompakte, farbige Statusline fuer [Claude Code](https://claude.com/claude-c
 ## Anzeige
 
 ```
-Claude Opus 4.7  [max]  user@host:~/projekte/repo  (main)  Ctx 20%  42.3k Tok  $0.1234  5h 18% (37m)  7d 15% (Do 20:59)
+Claude Opus 4.7  [max]  user@host:repo  (main)  Ctx 20%  42.3k Tok  $0.1234  5h 18% (37m)  7d 15% (Do 20:59)
 ```
 
 Alle Farben sind gedimmt (`\e[2;XXm`), damit die Statusline dezent in den Hintergrund tritt und den eigentlichen Prompt-Text nicht ueberstrahlt. Lediglich die hoechsten Effort-Stufen (`max`/`xhigh`) werden in **fettem Magenta** hervorgehoben, damit "Maximum Reasoning" auf einen Blick erkennbar ist. Der Multi-Agent-Modus `ultracode` sticht zusaetzlich mit **fettem Hell-Magenta und einem ⚡-Symbol** heraus.
@@ -16,7 +16,7 @@ Felder von links nach rechts:
 |---|---|
 | **Modell** | Anzeigename des aktiven Modells (cyan) |
 | **Effort** | Reasoning-Effort-Level (`low`/`medium`/`high`/`max`/`xhigh`) sowie der Multi-Agent-Modus `ultracode`. `ultracode` ist bold-hell-magenta mit ⚡-Symbol, `max`/`xhigh` bold-magenta, der Rest dim-magenta. Das Matching ist case-unabhaengig (z. B. `Ultracode`), angezeigt wird die Original-Schreibweise. Quelle: `.effort.level` aus dem stdin-JSON (Live-Session-Wert via `/effort`); Fallbacks: `output_style.name`, `CLAUDE_REASONING_EFFORT`-Env, `effortLevel`/`reasoning_effort` aus `~/.claude/settings.json` |
-| **user@host:Verzeichnis** | PS1-Stil: Username + Hostname-Shortform + `:` + aktuelles Verzeichnis (`~` fuer Home). Username/Host dim-weiss, Pfad dim-blau |
+| **user@host:Verzeichnis** | PS1-Stil: Username + Hostname-Shortform + `:` + aktuelles Verzeichnis. Default ist nur der letzte Pfad-Teil (`repo`), damit die Felder rechts sichtbar bleiben; mit `CWD_STYLE=full` der komplette Pfad (`~/projekte/repo`). Home wird als `~` angezeigt. Username/Host dim-weiss, Pfad dim-blau |
 | **Git-Branch** | In Klammern, nur wenn das Verzeichnis ein Git-Repo ist (gelb) |
 | **Context-Usage** | Context-Fenster-Auslastung als Text (`Ctx XX%`), gruen < 50% < gelb < 80% < rot |
 | **Token-Verbrauch** | Gesamte Session-Tokens (`k`/`M`-Suffix, gedimmt) |
@@ -44,11 +44,12 @@ Einzelne Felder lassen sich ueber eine optionale Datei `~/.claude/statusline-con
 
 ```bash
 # ~/.claude/statusline-config
-SHOW_CWD=0    # Verzeichnis-Teil von user@host:Verzeichnis ausblenden -> nur user@host (1 = Default)
-SHOW_GIT=0    # Git-Branch ausblenden (1 = anzeigen, Default)
+SHOW_CWD=0       # Verzeichnis-Teil von user@host:Verzeichnis ausblenden -> nur user@host (1 = Default)
+SHOW_GIT=0       # Git-Branch ausblenden (1 = anzeigen, Default)
+CWD_STYLE=full   # kompletten Pfad statt nur des letzten Pfad-Teils anzeigen (basename = Default)
 ```
 
-Alles was nicht in der Datei steht, bleibt beim Default (`1` = sichtbar). Zum Wiedereinblenden einfach den Wert auf `1` setzen oder die Zeile loeschen.
+Alles was nicht in der Datei steht, bleibt beim Default (`SHOW_*=1` = sichtbar, `CWD_STYLE=basename`). Zum Zuruecksetzen einfach die Zeile loeschen.
 
 ## Voraussetzungen
 
