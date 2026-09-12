@@ -7,7 +7,7 @@ esc=$'\e'
 
 # Punkt als Dezimaltrenner erzwingen. LC_ALL hat hoehere Prioritaet als
 # LC_NUMERIC und wird vom System (de_DE.UTF-8) gesetzt – deshalb muss hier
-# LC_ALL=C gesetzt werden, sonst bauen awk/printf "200,0k Tok" / "$2,0000".
+# LC_ALL=C gesetzt werden, sonst bauen awk/printf "200k Tok" / "$2,00".
 export LC_ALL=C
 export LC_NUMERIC=C
 
@@ -20,6 +20,15 @@ STATUSLINE_CONFIG="${HOME}/.claude/statusline-config"
 SHOW_CWD="${SHOW_CWD:-1}"   # Verzeichnis
 SHOW_GIT="${SHOW_GIT:-1}"   # Git-Branch
 CWD_STYLE="${CWD_STYLE:-basename}"   # basename = nur letzter Pfad-Teil, full = kompletter Pfad
+CWD_COLOR="${CWD_COLOR:-94}"   # ANSI-SGR-Code fuer den Pfad: 94 = hellblau (Default), 34 = blau, "2;34" = dim-blau, "1;34" = fett-blau
+# Nur Ziffern und ";" zulassen, sonst entsteht eine kaputte Escape-Sequenz in der Status Line.
+case "$CWD_COLOR" in
+  ""|*[!0-9\;]*) CWD_COLOR=94 ;;
+esac
+RATE_PCT_COLOR="${RATE_PCT_COLOR:-0}"   # Prozentzahl der 5h/7d-Limits unter 70%: 0 = normal/ungedimmt (Default), 97 = hellweiss, 96 = hellcyan
+case "$RATE_PCT_COLOR" in
+  ""|*[!0-9\;]*) RATE_PCT_COLOR=0 ;;
+esac
 
 # --- Daten aus JSON extrahieren ---
 model=$(echo "$input" | jq -r '.model.display_name // "?"')
@@ -116,13 +125,15 @@ fi
 total_cost=$(awk "BEGIN {printf \"%.4f\", $cost_in + $cost_out}")
 
 # --- Token-Verbrauch formatieren ---
+# k-Bereich ganzzahlig (69k), M-Bereich mit einer Nachkommastelle (1.2M).
+# Schwelle 999500: ab hier rundet %.0f auf 1000k, deshalb schon als 1.0M anzeigen.
 total_tokens=$(( total_in + total_out ))
 if [ "$total_tokens" -lt 1000 ]; then
   token_str="${total_tokens} Tok"
-elif [ "$total_tokens" -lt 1000000 ]; then
-  token_str=$(awk "BEGIN {printf \"%.1fk Tok\", $total_tokens / 1000}")
+elif [ "$total_tokens" -lt 999500 ]; then
+  token_str=$(awk "BEGIN {printf \"%.0fk Tok\", $total_tokens / 1000}")
 else
-  token_str=$(awk "BEGIN {printf \"%.2fM Tok\", $total_tokens / 1000000}")
+  token_str=$(awk "BEGIN {printf \"%.1fM Tok\", $total_tokens / 1000000}")
 fi
 
 # --- Context-Usage als Text (Ctx XX%) ---
@@ -173,16 +184,20 @@ if [ -n "$rate_pct" ] && [ -n "$rate_reset" ]; then
   fi
 
   # Ab 90% deutliche Warnung (Bold-Rot + Symbol), ab 70% dezent gelb, sonst dim.
+  # Die Prozentzahl selbst ist nie gedimmt: unter 70% in RATE_PCT_COLOR, sonst in der Warnfarbe.
   rate_warn=""
   if [ "$rate_pct_int" -ge 90 ]; then
     rate_color="${esc}[1;31m"   # Bold Rot = Warnung
+    rate_pct_color="${esc}[1;31m"
     rate_warn="⚠ "
   elif [ "$rate_pct_int" -ge 70 ]; then
     rate_color="${esc}[2;33m"   # dim Gelb = Frühwarnung
+    rate_pct_color="${esc}[33m"   # Gelb, ungedimmt
   else
     rate_color="${esc}[2m"
+    rate_pct_color="${esc}[${RATE_PCT_COLOR}m"
   fi
-  rate_str="  ${rate_color}${rate_warn}5h ${rate_pct_int}% (${reset_str})${esc}[0m"
+  rate_str="  ${rate_color}${rate_warn}5h ${esc}[0m${rate_pct_color}${rate_pct_int}%${esc}[0m${rate_color} (${reset_str})${esc}[0m"
 fi
 
 # --- Rate-Limit (7-Tage-Fenster, nur bei Pro/Max-Abos ab erster API-Antwort) ---
@@ -208,29 +223,33 @@ if [ -n "$rate7_pct" ] && [ -n "$rate7_reset" ]; then
   reset7_str="${day_abbr} ${time_str}"
 
   # Ab 90% deutliche Warnung (Bold-Rot + Symbol), ab 70% dezent gelb, sonst dim.
+  # Die Prozentzahl selbst ist nie gedimmt: unter 70% in RATE_PCT_COLOR, sonst in der Warnfarbe.
   rate7_warn=""
   if [ "$rate7_pct_int" -ge 90 ]; then
     rate7_color="${esc}[1;31m"   # Bold Rot = Warnung
+    rate7_pct_color="${esc}[1;31m"
     rate7_warn="⚠ "
   elif [ "$rate7_pct_int" -ge 70 ]; then
     rate7_color="${esc}[2;33m"   # dim Gelb = Frühwarnung
+    rate7_pct_color="${esc}[33m"   # Gelb, ungedimmt
   else
     rate7_color="${esc}[2m"
+    rate7_pct_color="${esc}[${RATE_PCT_COLOR}m"
   fi
-  rate7_str="  ${rate7_color}${rate7_warn}7d ${rate7_pct_int}% (${reset7_str})${esc}[0m"
+  rate7_str="  ${rate7_color}${rate7_warn}7d ${esc}[0m${rate7_pct_color}${rate7_pct_int}%${esc}[0m${rate7_color} (${reset7_str})${esc}[0m"
 fi
 
 # --- user@host:Verzeichnis (PS1-Stil, an Position 3 der Status Line) ---
-# Format: user@host:~/project  (user@host dim-weiss, Doppelpunkt dim, Pfad dim-blau)
+# Format: user@host:~/project  (user@host dim-weiss, Doppelpunkt dim, Pfad in CWD_COLOR, Default hellblau)
 if [ "$SHOW_CWD" = "1" ]; then
-  userhost_str="${esc}[2;37m$(whoami)@$(hostname -s)${esc}[0m${esc}[2m:${esc}[0m${esc}[2;34m${short_cwd}${esc}[0m"
+  userhost_str="${esc}[2;37m$(whoami)@$(hostname -s)${esc}[0m${esc}[2m:${esc}[0m${esc}[${CWD_COLOR}m${short_cwd}${esc}[0m"
 else
   userhost_str="${esc}[2;37m$(whoami)@$(hostname -s)${esc}[0m"
 fi
 
 # --- Ausgabe zusammenbauen ---
 # Reihenfolge: Modell | Effort | user@host:Verzeichnis | Git-Branch | Context | Token | Kosten | 5h | 7d
-printf "${esc}[2;36m%s${esc}[0m%s  %s%s%s%s  ${esc}[2m%s${esc}[0m  ${esc}[2m\$%.4f${esc}[0m%s%s\n" \
+printf "${esc}[2;36m%s${esc}[0m%s  %s%s%s%s  ${esc}[2m%s${esc}[0m  ${esc}[2m\$%.2f${esc}[0m%s%s\n" \
   "$model" \
   "$effort_str" \
   "$userhost_str" \
