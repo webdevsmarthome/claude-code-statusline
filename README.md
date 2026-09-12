@@ -8,7 +8,7 @@ Eine kompakte, farbige Statusline fuer [Claude Code](https://claude.com/claude-c
 Claude Opus 4.7  [max]  user@host:repo  (main)  Ctx 20%  42k Tok  $0.12  5h 18% (37m)  7d 15% (Do 20:59)
 ```
 
-Alle Farben sind gedimmt (`\e[2;XXm`), damit die Statusline dezent in den Hintergrund tritt und den eigentlichen Prompt-Text nicht ueberstrahlt. Lediglich die hoechsten Effort-Stufen (`max`/`xhigh`) werden in **fettem Magenta** hervorgehoben, damit "Maximum Reasoning" auf einen Blick erkennbar ist. Der Multi-Agent-Modus `ultracode` sticht zusaetzlich mit **fettem Hell-Magenta und einem ⚡-Symbol** heraus.
+Fast alle Farben sind gedimmt (`\e[2;XXm`), damit die Statusline dezent in den Hintergrund tritt und den eigentlichen Prompt-Text nicht ueberstrahlt. Ausnahmen sind der Pfad (hellblau, `CWD_COLOR`) und die Prozentzahlen der Rate-Limits (`RATE_PCT_COLOR`), die zur besseren Lesbarkeit ungedimmt sind. Ausserdem werden die hoechsten Effort-Stufen (`max`/`xhigh`) in **fettem Magenta** hervorgehoben, damit "Maximum Reasoning" auf einen Blick erkennbar ist. Der Multi-Agent-Modus `ultracode` sticht zusaetzlich mit **fettem Hell-Magenta und einem ⚡-Symbol** heraus.
 
 Felder von links nach rechts:
 
@@ -22,7 +22,7 @@ Felder von links nach rechts:
 | **Token-Verbrauch** | Gesamte Session-Tokens, gedimmt. Unter 1M ganzzahlig in `k` (`69k`), darueber mit einer Nachkommastelle in `M` (`1.2M`) |
 | **Session-Kosten** | API-Preis-Schaetzung in USD, gedimmt |
 | **Rate-Limit (5h)** | Plan-Auslastung im 5-Stunden-Fenster, Reset relativ (`37m` / `2h 15m`). Farbe: dim < 70% < gelb < 90%; ab 90% Bold-Rot mit ⚠-Warnung. Die Prozentzahl selbst ist nie gedimmt (unter 70% ueber `RATE_PCT_COLOR` anpassbar, darueber in der Warnfarbe) |
-| **Rate-Limit (7d)** | Plan-Auslastung im 7-Tage-Fenster, Reset als Wochentag+Uhrzeit (`Do 20:59`). Gleiche Farbschwellen inkl. ⚠-Warnung ab 90% |
+| **Rate-Limit (7d)** | Plan-Auslastung im 7-Tage-Fenster, Reset als Wochentag+Uhrzeit (`Do 20:59`). Gleiche Farbschwellen inkl. ⚠-Warnung ab 90% und ungedimmter Prozentzahl (`RATE_PCT_COLOR`) |
 
 ## Installation
 
@@ -47,7 +47,7 @@ Einzelne Felder lassen sich ueber eine optionale Datei `~/.claude/statusline-con
 SHOW_CWD=0       # Verzeichnis-Teil von user@host:Verzeichnis ausblenden -> nur user@host (1 = Default)
 SHOW_GIT=0       # Git-Branch ausblenden (1 = anzeigen, Default)
 CWD_STYLE=full   # kompletten Pfad statt nur des letzten Pfad-Teils anzeigen (basename = Default)
-CWD_COLOR=34     # ANSI-Farbcode des Pfads: 94 = hellblau (Default), 34 = blau, "2;34" = dim-blau, "1;34" = fett-blau
+CWD_COLOR=34     # ANSI-Farbcode des Pfads: 94 = hellblau (Default), 34 = blau, "2;34" = dim-blau, "1;34" = fett-blau, "38;5;208" = 256-Farben-Orange
 RATE_PCT_COLOR=97  # Farbe der Prozentzahl in den 5h/7d-Bloecken unter 70%: 0 = normal/ungedimmt (Default), 97 = hellweiss, 96 = hellcyan
 ```
 
@@ -73,7 +73,7 @@ Einfach erneut den Installer laufen lassen - er ueberschreibt das Skript und pat
 
   Cache-Write/Read-Kosten werden nicht eingerechnet (sie sind nicht als kumulative Felder im stdin-JSON verfuegbar). Bei Claude Pro/Max zahlst du eine feste Pauschale - die Zahl hier ist ein reiner Orientierungswert.
 - **Rate-Limits erscheinen erst nach der ersten API-Antwort** einer Session und sind nur bei Pro/Max-Abos im stdin-JSON enthalten. Fehlen die Felder, werden die entsprechenden Bloecke einfach weggelassen.
-- **Locale-Hinweis (Linux mit `LC_ALL=de_DE.UTF-8` o.ae.):** Das Skript setzt intern `LC_ALL=C`, damit `awk`/`printf` Punkt statt Komma als Dezimaltrenner verwenden. Ohne diesen Override entstehen "200k Tok" / "$2,00" und Folge-Berechnungen schlagen fehl.
+- **Locale-Hinweis (Linux mit `LC_ALL=de_DE.UTF-8` o.ae.):** Das Skript setzt intern `LC_ALL=C`, damit `awk`/`printf` Punkt statt Komma als Dezimaltrenner verwenden. Ohne diesen Override entsteht "1,2M Tok", und `printf` verwirft den Kostenwert als ungueltige Zahl, sodass nur noch "$0,00" angezeigt wird.
 
 ## Deinstallation
 

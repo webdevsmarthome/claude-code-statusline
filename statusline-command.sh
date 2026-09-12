@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # Claude Code Status Line
-# Zeigt: Modell | Effort | Verzeichnis | Git-Branch | Context | Token | 5h | 7d | Kosten
+# Zeigt: Modell | Effort | user@host:Verzeichnis | Git-Branch | Context | Token | Kosten | 5h | 7d
 
 input=$(cat)
 esc=$'\e'
 
 # Punkt als Dezimaltrenner erzwingen. LC_ALL hat hoehere Prioritaet als
 # LC_NUMERIC und wird vom System (de_DE.UTF-8) gesetzt – deshalb muss hier
-# LC_ALL=C gesetzt werden, sonst bauen awk/printf "200k Tok" / "$2,00".
+# LC_ALL=C gesetzt werden, sonst baut awk "1,2M Tok" und bash-printf verwirft
+# den Kostenwert als ungueltige Zahl ("$0,00").
 export LC_ALL=C
 export LC_NUMERIC=C
 
